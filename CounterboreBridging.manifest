@@ -1,0 +1,13 @@
+{
+	"autodeskProduct":	"Fusion360",
+	"type":	"addin",
+	"id":	"c33cffa2-cd57-4350-9a68-f708c9284e5f",
+	"author":	"Finn Weithoff",
+	"description":	{
+		"":	""
+	},
+	"version":	"0.1",
+	"runOnStartup":	true,
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
