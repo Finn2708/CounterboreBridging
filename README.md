@@ -2,8 +2,7 @@
 
 This is an addin for Autodesk Fusion360 that provides easy optimization of counterbores for FDM 3d printing.
 
-<img src="media/addin_output.png" height=200/>
-<img src="media/slicer_output.png" height=200>
+<img src="media/addin_output.png" height=200/><img src="media/slicer_output.png" height=200>
 
 ## Installation
 
