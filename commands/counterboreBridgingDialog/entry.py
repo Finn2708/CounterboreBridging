@@ -131,9 +131,15 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # Get circles
         cs = sk.sketchCurves.sketchCircles
+        circles = [cs.item(i) for i in range(cs.count)]
         outer = cs.item(0)
-        inner = cs.item(1)
-
+        def get_radius(c: adsk.fusion.SketchCircle) -> float:
+            return c.radius
+        
+        circles.sort(key=get_radius, reverse=True)
+        outer = circles[0]
+        inner = circles[1]
+        
         xo = outer.centerSketchPoint.geometry.x
         yo = outer.centerSketchPoint.geometry.y
         zo = outer.centerSketchPoint.geometry.z
