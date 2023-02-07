@@ -84,6 +84,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     f_in.setSelectionLimits(1)
     d_in = inputs.addSelectionInput('direction_input', 'Direction', 'Select the direction of the primary bridge.')
     d_in.addSelectionFilter(adsk.core.SelectionCommandInput.LinearEdges)
+    d_in.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
+    d_in.addSelectionFilter(adsk.core.SelectionCommandInput.ConstructionLines)
     d_in.setSelectionLimits(1, 1)
     inputs.addValueInput('layer_height_input', 'Layer height', app.activeProduct.unitsManager.defaultLengthUnits, adsk.core.ValueInput.createByString('0.2 mm'))
 
