@@ -228,13 +228,20 @@ def command_execute(args: adsk.core.CommandEventArgs):
         else:
             tertiary_profiles.add(profiles[2])
         
-        # Extrude profiles
         one_lh = adsk.core.ValueInput.createByReal(-layer_height_input.value)
         two_lh = adsk.core.ValueInput.createByReal(-2 * layer_height_input.value)
 
         extrudes = design.activeComponent.features.extrudeFeatures
-        extrudes.addSimple(secondary_profiles, one_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
-        extrudes.addSimple(tertiary_profiles, two_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        ex1 = extrudes.addSimple(secondary_profiles, one_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        ex2 = extrudes.addSimple(tertiary_profiles, two_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
+
+        # If a user parameter is used as input, link extrude extent to that parameter
+        if design.userParameters.itemByName(layer_height_input.expression) is not None:
+            ex1_def = adsk.fusion.DistanceExtentDefinition.cast(ex1.extentOne)
+            ex1_def.distance.expression = f"-{layer_height_input.expression}"
+
+            ex2_def = adsk.fusion.DistanceExtentDefinition.cast(ex2.extentOne)
+            ex2_def.distance.expression = f"-2*{layer_height_input.expression}"
 
 
 # This event handler is called when the command needs to compute a new preview in the graphics window.
