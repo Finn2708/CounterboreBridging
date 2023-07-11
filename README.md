@@ -6,8 +6,7 @@ This is an addin for Autodesk Fusion360 that provides easy optimization of count
 
 ## Installation
 
-1. Clone this repository to `%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns` (for me, the specific path is `C:\Users\Finn\AppData\Roaming\Autodesk\Autodesk Fusion 360\API\AddIns`).
-
+1. Clone this repository to `%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns` (for me, the specific path is `C:\Users\Finn\AppData\Roaming\Autodesk\Autodesk Fusion 360\API\AddIns`). Make sure, the folder is named `CounterboreBridging` (i.e. if you downloaded the repo as .zip).
 2. Restart Fusion. 
 3. The addin will show up in `Design Workspace - Solid Tab - Modify Group` next to the `Move/Copy` command.
 
