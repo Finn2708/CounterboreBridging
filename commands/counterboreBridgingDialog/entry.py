@@ -3,6 +3,9 @@ import math
 import os
 from ...lib import fusion360utils as futil
 from ... import config
+
+from .geometryUtil import *
+
 app = adsk.core.Application.get()
 ui = app.userInterface
 
@@ -29,6 +32,7 @@ ICON_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resource
 # Local list of event handlers used to maintain a reference so
 # they are not released and garbage collected.
 local_handlers = []
+
 
 
 # Executed when add-in is run.
@@ -70,6 +74,187 @@ def stop():
         command_definition.deleteMe()
 
 
+
+
+
+
+def cutOneFace(face,layer_height_input: adsk.core.ValueCommandInput,angleStep=0,gap = 0.0001,oldGuideLine=None):
+    """
+    performs a cut with the specified parameters
+    a "gap" is left between the diameter and the line to make it easier to cut the patterns
+    """
+    app = adsk.core.Application.get()
+    design = adsk.fusion.Design.cast(app.activeProduct)
+
+    # Create sketch on face
+    sks = design.activeComponent.sketches
+    sk: adsk.fusion.Sketch = sks.add(face)
+
+
+
+
+    if oldGuideLine:
+        #copy it into the current sketch
+        #take the size of the angle
+
+        proj = sk.project(oldGuideLine)
+        oldGuideLine_proj: adsk.fusion.SketchLine = proj.item(0)
+        oldGuideLine_proj.isConstruction = True
+
+
+        #old fixed method
+        #leg_x = oldGuideLine_proj.endSketchPoint.geometry.x - oldGuideLine_proj.startSketchPoint.geometry.x
+        #leg_y = oldGuideLine_proj.endSketchPoint.geometry.y - oldGuideLine_proj.startSketchPoint.geometry.y
+        #angle = math.atan2(leg_y, leg_x) * 180 /math.pi
+
+        angle  = getAngleFromTwoPoints(oldGuideLine_proj.startSketchPoint.geometry,oldGuideLine_proj.endSketchPoint.geometry)
+
+        angleStepOrigin = angleStep
+        angleStep= angleStep+angle
+
+    
+
+    # Get inner circle
+    cs = sk.sketchCurves.sketchCircles
+    circles = [cs.item(i) for i in range(cs.count)]
+    def get_radius(c: adsk.fusion.SketchCircle) -> float:
+        return c.radius
+    
+    circles.sort(key=get_radius, reverse=False)
+    inner = circles[0]
+    inner.isConstruction = True
+
+    xi = inner.centerSketchPoint.geometry.x
+    yi = inner.centerSketchPoint.geometry.y
+    zi = inner.centerSketchPoint.geometry.z
+
+
+    #I take all the existing lines in the sketch (before adding any more) and remove the inner circle
+    lines = get_curves_from_sketch(sk)
+    lines.remove(inner) 
+
+
+    #Calculate the coordinates of the end point ( create a very short line since it will only serve as a reference for orientation )
+    angle_radians = math.radians(angleStep)
+    x_end = math.cos(angle_radians)*0.1 
+    y_end = math.sin(angle_radians)*0.1
+    start_point = adsk.core.Point3D.create(xi, yi, zi)
+    end_point =  adsk.core.Point3D.create(start_point.x+x_end, start_point.y+y_end, start_point.z)
+    angleGuideLine = sk.sketchCurves.sketchLines.addByTwoPoints(start_point, end_point)
+    angleGuideLine.isConstruction = True
+    sk.geometricConstraints.addCoincident(angleGuideLine.startSketchPoint,inner.centerSketchPoint)
+    if oldGuideLine:
+        ad = sk.sketchDimensions.addAngularDimension(oldGuideLine_proj,angleGuideLine,oldGuideLine_proj.geometry.startPoint)
+        ad.parameter.value=math.radians(angleStepOrigin)
+    else:
+        angleGuideLine.isFixed=True
+    
+
+     
+    #create the first line with the related constraints
+    #(I use a vect to move the vertex points of the lines by certain dimensions)
+    line1 = sk.sketchCurves.sketchLines.addByTwoPoints(angleGuideLine.startSketchPoint.geometry, angleGuideLine.endSketchPoint.geometry)
+    sk.geometricConstraints.addParallel(line1, angleGuideLine)
+    vect = createVectorFrom2Points(angleGuideLine.startSketchPoint.geometry, angleGuideLine.endSketchPoint.geometry)
+    rotateVector(vect,'z',90)
+    vect.normalize()
+    vect.scaleBy(inner.radius + gap)     
+    line1.endSketchPoint.move(vect)
+
+    #create the second line with the related constraints
+    line2 = sk.sketchCurves.sketchLines.addByTwoPoints(angleGuideLine.startSketchPoint.geometry, angleGuideLine.endSketchPoint.geometry)
+    sk.geometricConstraints.addParallel(line2, angleGuideLine)
+    rotateVector180(vect)
+    line2.endSketchPoint.move(vect)
+
+
+ 
+
+    #create construction lines to set the distance between the line and the internal diameter
+    #for line1
+    distanceLine = sk.sketchCurves.sketchLines.addByTwoPoints(inner.centerSketchPoint.geometry, line1.endSketchPoint.geometry)
+    distanceLine.isConstruction=True
+    sk.geometricConstraints.addPerpendicular(distanceLine,line1)
+    sk.geometricConstraints.addCoincident(inner.centerSketchPoint,distanceLine.startSketchPoint)
+    sk.geometricConstraints.addCoincident(distanceLine.endSketchPoint,line1)
+    dim = sk.sketchDimensions.addDistanceDimension(distanceLine.startSketchPoint,distanceLine.endSketchPoint,adsk.fusion.DimensionOrientations.AlignedDimensionOrientation,distanceLine.startSketchPoint.geometry)
+    dim.parameter.value = inner.radius+gap
+
+    #for line2
+    distanceLine = sk.sketchCurves.sketchLines.addByTwoPoints(inner.centerSketchPoint.geometry, line2.endSketchPoint.geometry)
+    distanceLine.isConstruction=True
+    sk.geometricConstraints.addPerpendicular(distanceLine,line2)
+    sk.geometricConstraints.addCoincident(inner.centerSketchPoint,distanceLine.startSketchPoint)
+    sk.geometricConstraints.addCoincident(distanceLine.endSketchPoint,line2)
+    sk.sketchDimensions.addDistanceDimension(distanceLine.startSketchPoint,distanceLine.endSketchPoint,adsk.fusion.DimensionOrientations.AlignedDimensionOrientation,distanceLine.startSketchPoint.geometry)
+    dim.parameter.value = inner.radius+gap
+
+
+    #retrieve the intersections of the 2 lines with the existing profile
+    startPoint1,endPoint1,interLineStart1,interLineEnd1 = getExtendedIntersectionPoints(line1,lines)
+    startPoint2,endPoint2,interLineStart2,interLineEnd2 = getExtendedIntersectionPoints(line2,lines)
+
+    
+
+
+
+    #move the lines as close to the intersection points as possible
+    movePointTo(line1.startSketchPoint,startPoint1)
+    movePointTo(line1.endSketchPoint,endPoint1)
+
+    movePointTo(line2.startSketchPoint,startPoint2)
+    movePointTo(line2.endSketchPoint,endPoint2)
+
+    #add the coincidence constraint (if it is not placed, it can cause problems on the splines)
+    sk.geometricConstraints.addCoincident(line1.startSketchPoint,interLineStart1)
+    sk.geometricConstraints.addCoincident(line1.endSketchPoint,interLineEnd1)
+
+    sk.geometricConstraints.addCoincident(line2.startSketchPoint,interLineStart2)
+    sk.geometricConstraints.addCoincident(line2.endSketchPoint,interLineEnd2)
+
+
+
+    # Take the center profile
+    
+    #search all profiles for those that contain both line1 and line2
+    #if a profile contains both it means it is the central one
+    profiles = [sk.profiles.item(i) for i in range(sk.profiles.count)]
+
+    candidateProfiles = []
+    for p in profiles:
+        if profileHasLine(p,line1.geometry) and profileHasLine(p,line2.geometry):
+           candidateProfiles.append(p)
+    
+    #I found more "valid" profiles... exceptional case...
+    if len(candidateProfiles) != 1:
+        ui.messageBox("Invalid shape, cant compute the inner profile")
+        return
+
+    centerProfile = adsk.core.ObjectCollection.create()
+    centerProfile.add(candidateProfiles[0])
+  
+    
+
+
+    #make the cut
+    one_lh = adsk.core.ValueInput.createByReal(-layer_height_input.value)
+ 
+    extrudes = design.activeComponent.features.extrudeFeatures
+    ex1 = extrudes.addSimple(centerProfile, one_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
+    
+
+    # If a user parameter is used as input, link extrude extent to that parameter
+    if design.userParameters.itemByName(layer_height_input.expression) is not None:
+        ex1_def = adsk.fusion.DistanceExtentDefinition.cast(ex1.extentOne)
+        ex1_def.distance.expression = f"-{layer_height_input.expression}"
+
+
+    #return the new face (for the next cut) and the guide line for orientation
+    return ex1.endFaces[0],angleGuideLine
+
+
+
+
 # Function that is called when a user clicks the corresponding button in the UI.
 # This defines the contents of the command dialog and connects to the command related events.
 def command_created(args: adsk.core.CommandCreatedEventArgs):
@@ -82,18 +267,19 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     f_in = inputs.addSelectionInput('face_input', 'Counterbore Face', 'Select the counterbore bottom face.')
     f_in.addSelectionFilter(adsk.core.SelectionCommandInput.SolidFaces)
     f_in.setSelectionLimits(1)
-    d_in = inputs.addSelectionInput('direction_input', 'Direction', 'Select the direction of the primary bridge.')
-    d_in.addSelectionFilter(adsk.core.SelectionCommandInput.LinearEdges)
-    d_in.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
-    d_in.addSelectionFilter(adsk.core.SelectionCommandInput.ConstructionLines)
-    d_in.setSelectionLimits(1, 1)
-    inputs.addValueInput('layer_height_input', 'Layer height', app.activeProduct.unitsManager.defaultLengthUnits, adsk.core.ValueInput.createByString('0.2 mm'))
 
+    inputs.addIntegerSpinnerCommandInput('angle_degree_input', 'Angle degree',0,359,1,0)
+    inputs.addValueInput('layer_height_input', 'Layer height', app.activeProduct.unitsManager.defaultLengthUnits, adsk.core.ValueInput.createByString('0.2 mm'))
+    inputs.addIntegerSpinnerCommandInput('number_of_cut', 'Number of cut',1,5,1,2)
+   
+    
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
     futil.add_handler(args.command.executePreview, command_preview, local_handlers=local_handlers)
     futil.add_handler(args.command.validateInputs, command_validate_input, local_handlers=local_handlers)
     futil.add_handler(args.command.destroy, command_destroy, local_handlers=local_handlers)
+
+
 
 
 # This event handler is called when the user clicks the OK button in the command dialog or 
@@ -105,150 +291,42 @@ def command_execute(args: adsk.core.CommandEventArgs):
     # Get a reference to your command's inputs.
     inputs = args.command.commandInputs
     face_input: adsk.core.SelectionCommandInput = inputs.itemById('face_input')
-    dir_input: adsk.core.SelectionCommandInput = inputs.itemById('direction_input')
+    angle_degree_input = inputs.itemById('angle_degree_input')
     layer_height_input: adsk.core.ValueCommandInput = inputs.itemById('layer_height_input')
+    number_of_cut_input = inputs.itemById('number_of_cut')
 
     app = adsk.core.Application.get()
     design = adsk.fusion.Design.cast(app.activeProduct)
     
     # Read inputs
     faces = [face_input.selection(i) for i in range(face_input.selectionCount)]
-    primary_direction = dir_input.selection(0)
-    layer_heigth = layer_height_input.value
+    #layer_heigth = layer_height_input.value
+
+    angleStep= 180.0/number_of_cut_input.value
+
 
     for face in faces:
-        # Create sketch on face
-        sks = design.activeComponent.sketches
-        sk: adsk.fusion.Sketch = sks.add(face.entity)
 
-        # Project primary bridge direction to sketch and get its angle
-        proj = sk.project(primary_direction.entity)
-        dir_proj: adsk.fusion.SketchLine = proj.item(0)
-        dir_proj.isConstruction = True
-        
-        leg_x = dir_proj.endSketchPoint.geometry.x - dir_proj.startSketchPoint.geometry.x
-        leg_y = dir_proj.endSketchPoint.geometry.y - dir_proj.startSketchPoint.geometry.y
-        hypotenuse  = math.sqrt(leg_x ** 2 + leg_y ** 2)
-        alpha = math.acos(leg_x / hypotenuse)
+        currentFace = face.entity
+        currentAngle = angle_degree_input.value #la prima volta vale come l'angolo impostato, poi step
+        oldGuideLine=None
+        for i in range(number_of_cut_input.value):
+            currentFace,oldGuideLine = cutOneFace(currentFace,layer_height_input,currentAngle,oldGuideLine=oldGuideLine)
+            currentAngle = angleStep
+            #app.activeViewport.refresh()
+            
 
-        # Get circles
-        cs = sk.sketchCurves.sketchCircles
-        circles = [cs.item(i) for i in range(cs.count)]
-        outer = cs.item(0)
-        def get_radius(c: adsk.fusion.SketchCircle) -> float:
-            return c.radius
-        
-        circles.sort(key=get_radius, reverse=True)
-        outer = circles[0]
-        inner = circles[1]
-        
-        xo = outer.centerSketchPoint.geometry.x
-        yo = outer.centerSketchPoint.geometry.y
-        zo = outer.centerSketchPoint.geometry.z
-
-        # Draw primary bridges
-        ls = sk.sketchCurves.sketchLines
-        ps = sk.sketchPoints
-        p1 = ps.add(adsk.core.Point3D.create(
-            xo + inner.radius * math.sin(alpha) + math.sqrt(outer.radius**2 + inner.radius**2) * math.cos(alpha),
-            yo + inner.radius * math.cos(alpha) + math.sqrt(outer.radius**2 + inner.radius**2) * math.sin(alpha),
-            zo))
-        sk.geometricConstraints.addCoincident(p1, outer)
-        p2 = ps.add(adsk.core.Point3D.create(
-            xo + inner.radius * math.sin(alpha) - math.sqrt(outer.radius**2 + inner.radius**2) * math.cos(alpha),
-            yo + inner.radius * math.cos(alpha) - math.sqrt(outer.radius**2 + inner.radius**2) * math.sin(alpha),
-            zo))
-        sk.geometricConstraints.addCoincident(p2, outer)
-        p3 = ps.add(adsk.core.Point3D.create(
-            xo - inner.radius * math.sin(alpha) + math.sqrt(outer.radius**2 + inner.radius**2) * math.cos(alpha),
-            yo - inner.radius * math.cos(alpha) + math.sqrt(outer.radius**2 + inner.radius**2) * math.sin(alpha),
-            zo))
-        sk.geometricConstraints.addCoincident(p3, outer)
-        p4 = ps.add(adsk.core.Point3D.create(
-            xo - inner.radius * math.sin(alpha) - math.sqrt(outer.radius**2 + inner.radius**2) * math.cos(alpha),
-            yo - inner.radius * math.cos(alpha) - math.sqrt(outer.radius**2 + inner.radius**2) * math.sin(alpha),
-            zo))
-        sk.geometricConstraints.addCoincident(p4, outer)
-
-        l1 = ls.addByTwoPoints(p1, p2)
-        sk.geometricConstraints.addParallel(l1, proj.item(0))
-        sk.geometricConstraints.addTangent(l1, inner)
-        l2 = ls.addByTwoPoints(p3, p4)
-        sk.geometricConstraints.addParallel(l2, proj.item(0))
-        sk.geometricConstraints.addTangent(l2, inner)
-
-        # Draw secondary bridges
-        xi = inner.centerSketchPoint.geometry.x
-        yi = inner.centerSketchPoint.geometry.y
-        zi = inner.centerSketchPoint.geometry.z
-
-        p5 = ps.add(adsk.core.Point3D.create(
-            xi + math.sqrt(inner.radius**2 + inner.radius**2) * math.cos(alpha + math.radians(45)),
-            yi + math.sqrt(inner.radius**2 + inner.radius**2) * math.sin(alpha + math.radians(45)),
-            zi))
-        sk.geometricConstraints.addCoincident(p5, l1)
-        p6 = ps.add(adsk.core.Point3D.create(
-            xi + math.sqrt(inner.radius**2 + inner.radius**2) * math.cos(alpha - math.radians(45)),
-            yi + math.sqrt(inner.radius**2 + inner.radius**2) * math.sin(alpha - math.radians(45)),
-            zi))
-        sk.geometricConstraints.addCoincident(p6, l2)
-        p7 = ps.add(adsk.core.Point3D.create(
-            xi - math.sqrt(inner.radius**2 + inner.radius**2) * math.cos(alpha + math.radians(45)),
-            yi - math.sqrt(inner.radius**2 + inner.radius**2) * math.sin(alpha + math.radians(45)),
-            zi))
-        sk.geometricConstraints.addCoincident(p7, l1)
-        p8 = ps.add(adsk.core.Point3D.create(
-            xi - math.sqrt(inner.radius**2 + inner.radius**2) * math.cos(alpha - math.radians(45)),
-            yi - math.sqrt(inner.radius**2 + inner.radius**2) * math.sin(alpha - math.radians(45)),
-            zi))
-        sk.geometricConstraints.addCoincident(p8, l2)
-
-        l3 = ls.addByTwoPoints(p5, p6)
-        sk.geometricConstraints.addPerpendicular(l3, proj.item(0))
-        sk.geometricConstraints.addTangent(l3, inner)
-        l4 = ls.addByTwoPoints(p7, p8)
-        sk.geometricConstraints.addPerpendicular(l4, proj.item(0))
-        sk.geometricConstraints.addTangent(l4, inner)
-
-        inner.isConstruction = True
-
-        # Select profiles by area
-        profiles = [sk.profiles.item(i) for i in range(sk.profiles.count)]
-        def get_area(p: adsk.fusion.Profile) -> float:
-            return p.areaProperties().area
-        profiles.sort(key=get_area, reverse=True)
-        
-        secondary_profiles = adsk.core.ObjectCollection.create()
-        secondary_profiles.add(profiles[3])
-        secondary_profiles.add(profiles[4])
-        
-        tertiary_profiles = adsk.core.ObjectCollection.create()
-        if round(profiles[0].areaProperties().area, 8) == round((2 * inner.radius) ** 2, 8):
-            tertiary_profiles.add(profiles[0])
-        else:
-            tertiary_profiles.add(profiles[2])
-        
-        one_lh = adsk.core.ValueInput.createByReal(-layer_height_input.value)
-        two_lh = adsk.core.ValueInput.createByReal(-2 * layer_height_input.value)
-
-        extrudes = design.activeComponent.features.extrudeFeatures
-        ex1 = extrudes.addSimple(secondary_profiles, one_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
-        ex2 = extrudes.addSimple(tertiary_profiles, two_lh, adsk.fusion.FeatureOperations.CutFeatureOperation)
-
-        # If a user parameter is used as input, link extrude extent to that parameter
-        if design.userParameters.itemByName(layer_height_input.expression) is not None:
-            ex1_def = adsk.fusion.DistanceExtentDefinition.cast(ex1.extentOne)
-            ex1_def.distance.expression = f"-{layer_height_input.expression}"
-
-            ex2_def = adsk.fusion.DistanceExtentDefinition.cast(ex2.extentOne)
-            ex2_def.distance.expression = f"-2*{layer_height_input.expression}"
 
 
 # This event handler is called when the command needs to compute a new preview in the graphics window.
 def command_preview(args: adsk.core.CommandEventArgs):
     # General logging for debug.
     futil.log(f'{CMD_NAME} Command Preview Event')
-    inputs = args.command.commandInputs
+
+    command_execute(args)
+
+
+    #inputs = args.command.commandInputs
 
 
 # This event handler is called when the user changes anything in the command dialog
@@ -284,3 +362,4 @@ def command_destroy(args: adsk.core.CommandEventArgs):
 
     global local_handlers
     local_handlers = []
+
