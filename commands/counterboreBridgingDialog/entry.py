@@ -117,10 +117,15 @@ def cutOneFace(face,layer_height_input: adsk.core.ValueCommandInput,angleStep=0,
     # Get inner circle
     cs = sk.sketchCurves.sketchCircles
     circles = [cs.item(i) for i in range(cs.count)]
-    def get_radius(c: adsk.fusion.SketchCircle) -> float:
-        return c.radius
+    if len(circles)==0: 
+        #it could be an arc... 
+        cs = sk.sketchCurves.sketchArcs
+        circles = [cs.item(i) for i in range(cs.count)]
+        if len(circles)==0: 
+            ui.messageBox("Cannot find inner circle")
+            return
     
-    circles.sort(key=get_radius, reverse=False)
+    circles.sort(key=lambda c: c.radius, reverse=False)
     inner = circles[0]
     inner.isConstruction = True
 
@@ -186,9 +191,8 @@ def cutOneFace(face,layer_height_input: adsk.core.ValueCommandInput,angleStep=0,
     sk.geometricConstraints.addPerpendicular(distanceLine,line2)
     sk.geometricConstraints.addCoincident(inner.centerSketchPoint,distanceLine.startSketchPoint)
     sk.geometricConstraints.addCoincident(distanceLine.endSketchPoint,line2)
-    sk.sketchDimensions.addDistanceDimension(distanceLine.startSketchPoint,distanceLine.endSketchPoint,adsk.fusion.DimensionOrientations.AlignedDimensionOrientation,distanceLine.startSketchPoint.geometry)
+    dim = sk.sketchDimensions.addDistanceDimension(distanceLine.startSketchPoint,distanceLine.endSketchPoint,adsk.fusion.DimensionOrientations.AlignedDimensionOrientation,distanceLine.startSketchPoint.geometry)
     dim.parameter.value = inner.radius+gap
-
 
     #retrieve the intersections of the 2 lines with the existing profile
     startPoint1,endPoint1,interLineStart1,interLineEnd1 = getExtendedIntersectionPoints(line1,lines)
