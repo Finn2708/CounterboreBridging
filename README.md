@@ -4,6 +4,8 @@ This is an addin for Autodesk Fusion360 that provides easy optimization of count
 
 <img src="media/addin_output.png" height=200/><img src="media/slicer_output.png" height=200>
 
+[中文文档](README_zh.md)
+
 ## Installation
 
 1. Clone this repository to `%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns` (for me, the specific path is `C:\Users\Finn\AppData\Roaming\Autodesk\Autodesk Fusion 360\API\AddIns` and Mac: `~/Library/Application\ Support/Autodesk/Autodesk\ Fusion\ 360/API`).  

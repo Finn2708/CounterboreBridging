@@ -3,8 +3,10 @@
 	"type":	"addin",
 	"id":	"c33cffa2-cd57-4350-9a68-f708c9284e5f",
 	"author":	"Finn Weithoff",
-	"description":	{
-		"":	""
+	"description": {
+		"": "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing",
+		"2052": "一款用于优化3D打印沉头孔的Fusion 360插件",
+		"1028": "一款用於優化3D列印沉頭孔的Fusion 360外掛程式"
 	},
 	"version":	"0.1",
 	"runOnStartup":	true,

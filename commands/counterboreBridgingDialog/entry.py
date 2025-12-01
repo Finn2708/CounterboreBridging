@@ -21,13 +21,73 @@ from .geometryUtil import (
 
 app = adsk.core.Application.get()
 ui = app.userInterface
+userLanguage = app.preferences.generalPreferences.userLanguage
+
+# i18n
+# ChinesePRCLanguage = 0
+# ChineseTaiwanLanguage = 1
+# CzechLanguage = 2
+# EnglishLanguage = 3
+# FrenchLanguage = 4
+# GermanLanguage = 5
+# HungarianLanguage = 6
+# ItalianLanguage = 7
+# JapaneseLanguage = 8
+# KoreanLanguage = 9
+# PolishLanguage = 10
+# PortugueseBrazilianLanguage = 11
+# RussianLanguage = 12
+# SpanishLanguage = 13
+# TurkishLanguage = 14
+i18n = {
+    0: {
+        "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing": "一款用于优化3D打印沉头孔的Fusion 360插件",
+        "Counterbore Bridging": "沉孔搭桥",
+        "Counterbore Face": "沉头孔面",
+        "Select the counterbore bottom face.": "请选择沉头孔底面。",
+        "Angle degree": "角度",
+        "Layer height": "层高",
+        "Number of cut": "切割次数",
+        "Invalid shape, cant compute the inner profile": "无效的形状，无法计算内部轮廓",
+        "Cannot find inner circle": "找不到内圆",
+    },
+    1: {
+        "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing": "一款用於優化3D列印沉頭孔的Fusion 360外掛程式",
+        "Counterbore Bridging": "沉頭孔搭橋",
+        "Counterbore Face": "沉頭孔面",
+        "Select the counterbore bottom face.": "請選擇沉頭孔底面。",
+        "Angle degree": "角度",
+        "Layer height": "層高",
+        "Number of cut": "切割次數",
+        "Invalid shape, cant compute the inner profile": "無效的形狀，無法計算內部輪廓",
+        "Cannot find inner circle": "找不到內圓",
+    },
+    3: {
+        "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing": "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing",
+        "Counterbore Bridging": "Counterbore Bridging",
+        "Counterbore Face": "Counterbore Face",
+        "Select the counterbore bottom face.": "Select the counterbore bottom face.",
+        "Angle degree": "Angle degree",
+        "Layer height": "Layer height",
+        "Number of cut": "Number of cut",
+        "Invalid shape, cant compute the inner profile": "Invalid shape, cant compute the inner profile",
+        "Cannot find inner circle": "Cannot find inner circle",
+    },
+}
+
+def _(text, lang=3):
+    """
+    i18n localization function: returns the localized string for `text` in `lang`.
+    Defaults to English if translation not found.
+    """
+    return i18n.get(lang, {}).get(text, i18n[3].get(text, text))
 
 
 # TODO *** Specify the command identity information. ***
 CMD_ID = f"{config.COMPANY_NAME}_{config.ADDIN_NAME}_cmdDialog"
-CMD_NAME = "Counterbore Bridging"
+CMD_NAME = _("Counterbore Bridging", userLanguage)
 CMD_Description = (
-    "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing"
+    _("A Fusion 360 Add-in Command for optimizing counterbores for 3D printing", userLanguage)
 )
 
 # Specify that the command will be promoted to the panel.
@@ -137,7 +197,7 @@ def cutOneFace(
         cs = sk.sketchCurves.sketchArcs
         circles = [cs.item(i) for i in range(cs.count)]
         if len(circles) == 0:
-            ui.messageBox("Cannot find inner circle")
+            ui.messageBox(_("Cannot find inner circle", userLanguage))
             return
 
     circles.sort(key=lambda c: c.radius, reverse=False)
@@ -267,7 +327,7 @@ def cutOneFace(
 
     # if found more "valid" profiles... exceptional case...
     if len(candidateProfiles) != 1:
-        ui.messageBox("Invalid shape, cant compute the inner profile")
+        ui.messageBox(_("Invalid shape, cant compute the inner profile", userLanguage))
         return
 
     centerProfile = adsk.core.ObjectCollection.create()
@@ -300,21 +360,25 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs = args.command.commandInputs
 
     f_in = inputs.addSelectionInput(
-        "face_input", "Counterbore Face", "Select the counterbore bottom face."
+        "face_input",
+        _("Counterbore Face", userLanguage),
+        _("Select the counterbore bottom face.", userLanguage),
     )
     f_in.addSelectionFilter(adsk.core.SelectionCommandInput.SolidFaces)
     f_in.setSelectionLimits(1)
 
     inputs.addIntegerSpinnerCommandInput(
-        "angle_degree_input", "Angle degree", 0, 359, 1, 0
+        "angle_degree_input", _("Angle degree", userLanguage), 0, 359, 1, 0
     )
     inputs.addValueInput(
         "layer_height_input",
-        "Layer height",
+        _("Layer height", userLanguage),
         app.activeProduct.unitsManager.defaultLengthUnits,
         adsk.core.ValueInput.createByString("0.2 mm"),
     )
-    inputs.addIntegerSpinnerCommandInput("number_of_cut", "Number of cut", 1, 5, 1, 2)
+    inputs.addIntegerSpinnerCommandInput(
+        "number_of_cut", _("Number of cut", userLanguage), 1, 5, 1, 2
+    )
 
     futil.add_handler(
         args.command.execute, command_execute, local_handlers=local_handlers
