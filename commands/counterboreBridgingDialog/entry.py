@@ -164,8 +164,17 @@ def cutOneFace(
     app = adsk.core.Application.get()
     design = adsk.fusion.Design.cast(app.activeProduct)
 
+    # Use the component that owns the face, not design.activeComponent.
+    # design.activeComponent returns the root component when the user is not
+    # inside an "Edit Component" context, which causes sketch/extrude features
+    # to be created in the wrong component when the selected face belongs to a
+    # sub-component body.  This is why only the first cut works: after the
+    # first extrude the returned endFace is a sub-component face, and
+    # subsequent iterations silently operate on the wrong component.
+    component = face.body.parentComponent
+
     # Create sketch on face
-    sks = design.activeComponent.sketches
+    sks = component.sketches
     sk: adsk.fusion.Sketch = sks.add(face)
 
     if oldGuideLine:
@@ -336,7 +345,7 @@ def cutOneFace(
     # make the cut
     one_lh = adsk.core.ValueInput.createByReal(-layer_height_input.value)
 
-    extrudes = design.activeComponent.features.extrudeFeatures
+    extrudes = component.features.extrudeFeatures
     ex1 = extrudes.addSimple(
         centerProfile, one_lh, adsk.fusion.FeatureOperations.CutFeatureOperation
     )
