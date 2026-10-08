@@ -1,14 +1,15 @@
 {
-	"autodeskProduct":	"Fusion360",
+	"autodeskProduct":	"Fusion",
 	"type":	"addin",
 	"id":	"c33cffa2-cd57-4350-9a68-f708c9284e5f",
 	"author":	"Finn Weithoff",
 	"description": {
-		"": "A Fusion 360 Add-in Command for optimizing counterbores for 3D printing",
-		"2052": "一款用于优化3D打印沉头孔的Fusion 360插件",
-		"1028": "一款用於優化3D列印沉頭孔的Fusion 360外掛程式"
+		"": "Adds bridging layers below counterbores, so they 3D print without support.",
+		"2052": "在沉头孔下方添加搭桥层，使其无需支撑即可3D打印。",
+		"1028": "在沉頭孔下方添加搭橋層，使其無需支撐即可3D列印。",
+		"1031": "Fügt unter Senkungen Brückenschichten hinzu, damit sie ohne Stützstruktur 3D-druckbar sind."
 	},
-	"version":	"0.1",
+	"version":	"2.0.0-dev",
 	"runOnStartup":	true,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true
