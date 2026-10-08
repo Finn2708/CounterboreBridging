@@ -8,9 +8,11 @@ Each hole gets one cut layer per bridge direction. Layer k removes the part of t
 counterbore outline that lies inside the strips of layers 1..k, where a strip covers
 the hole's extent across its bridge direction. Layer 1 is next to the counterbore.
 
-By default the bridge directions are the directions of the hole's straight edges, so
-a hex hole gets three layers and the last one ends exactly on the hole outline. Holes
-without at least two edge directions (round holes, slots) get two layers at 90 degrees.
+By default there is one layer per direction of the hole's straight edges, running
+along those edges, so a hex hole gets three layers and the last one ends exactly on
+the hole outline. Holes without at least two edge directions (round holes, slots) get
+two layers at 90 degrees. A picked reference overrides the directions: the layers are
+then spread evenly from the reference, and the hole shape only sets their number.
 """
 
 import json
@@ -121,21 +123,37 @@ def floor_frame(face: adsk.fusion.BRepFace, reference: adsk.core.Vector3D = None
     return n, u, n.crossProduct(u)
 
 
-def bridge_angles(hole: Hole, u: adsk.core.Vector3D, v: adsk.core.Vector3D, angle: float, layers=None):
+def auto_layers(hole: Hole, u: adsk.core.Vector3D, v: adsk.core.Vector3D) -> int:
+    """Automatic layer count: one per straight-edge direction, 2 for round holes and slots."""
+    count = len(hole.edge_angles(u, v))
+    return count if 2 <= count <= MAX_AUTO_LAYERS else 2
+
+
+def bridge_angles(hole: Hole, u, v, angle: float, layers=None, follow_hole=True):
     """Bridge directions of the layers of one hole, as angles from u.
 
-    layers None: one layer per straight-edge direction of the hole; holes with fewer
-    than two directions get two layers at 90 degrees, along their only straight edge
-    direction if they have one, else at angle. A number: that many layers, evenly
+    layers None: auto_layers() layers. With follow_hole they run along the hole's
+    straight edges (a slot's single direction plus its perpendicular); holes without
+    straight edges, and all holes without follow_hole (a reference was picked), get
+    evenly spread directions starting at angle. A number: that many layers, evenly
     spread over 180 degrees starting at angle.
     """
-    if layers is not None:
-        return [angle + k * math.pi / layers for k in range(layers)]
-    edges = hole.edge_angles(u, v)
-    if 2 <= len(edges) <= MAX_AUTO_LAYERS:
-        return edges
-    start = edges[0] if len(edges) == 1 else angle
-    return [start, start + math.pi / 2]
+    if layers is None:
+        edges = hole.edge_angles(u, v)
+        if follow_hole and 2 <= len(edges) <= MAX_AUTO_LAYERS:
+            return edges
+        if follow_hole and len(edges) == 1:
+            return [edges[0], edges[0] + math.pi / 2]
+        layers = auto_layers(hole, u, v)
+    return [angle + k * math.pi / layers for k in range(layers)]
+
+
+def angle_matters(face: adsk.fusion.BRepFace, layers, has_reference: bool) -> bool:
+    """Whether the angle setting changes the bridges of this floor."""
+    if layers is not None or has_reference:
+        return True
+    n, u, v = floor_frame(face)
+    return any(not 1 <= len(hole.edge_angles(u, v)) <= MAX_AUTO_LAYERS for hole in holes(face))
 
 
 def tool_body(
@@ -169,7 +187,7 @@ def tool_body(
     tool = None
     for hole in holes(face):
         strips = []
-        for k, a in enumerate(bridge_angles(hole, u0, v0, angle, layers), start=1):
+        for k, a in enumerate(bridge_angles(hole, u0, v0, angle, layers, reference is None), start=1):
             uk = _rotated(u0, n, a)
             vk = n.crossProduct(uk)
             strips.append(_strip(hole, origin, uk, vk, span))

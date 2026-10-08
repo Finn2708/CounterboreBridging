@@ -77,7 +77,7 @@ def _add_inputs(inputs: adsk.core.CommandInputs, settings: feature.Settings):
     reference = inputs.addSelectionInput(
         "reference",
         tr("Reference"),
-        tr("Optional: straight edge, sketch line or axis the first bridges run along."),
+        tr("Optional: straight edge, sketch line or axis the first bridges run along, instead of the hole's edges."),
     )
     reference.addSelectionFilter(adsk.core.SelectionCommandInput.LinearEdges)
     reference.addSelectionFilter(adsk.core.SelectionCommandInput.SketchLines)
@@ -85,7 +85,10 @@ def _add_inputs(inputs: adsk.core.CommandInputs, settings: feature.Settings):
     reference.setSelectionLimits(0, 1)
 
     angle = inputs.addValueInput("angle", tr("Angle"), "deg", adsk.core.ValueInput.createByString(settings.angle))
-    angle.tooltip = tr("Rotates the bridges of round holes, or of all holes when the layers are set manually.")
+    angle.tooltip = tr(
+        "Rotates the bridges from the reference. Without a reference it only applies to round holes "
+        "and manual layers, as other holes set their own directions."
+    )
     units = adsk.fusion.Design.cast(app.activeProduct).unitsManager.defaultLengthUnits
     inputs.addValueInput(
         "layerHeight", tr("Layer height"), units, adsk.core.ValueInput.createByString(settings.layer_height)
@@ -115,6 +118,16 @@ def _read_inputs(inputs: adsk.core.CommandInputs):
 def input_changed(args: adsk.core.InputChangedEventArgs):
     if args.input.id == "autoLayers":
         args.inputs.itemById("layers").isEnabled = not args.input.value
+    _update_angle_state(args.inputs)
+
+
+def _update_angle_state(inputs: adsk.core.CommandInputs):
+    """Grey out the angle when it would not change any of the selected bridges."""
+    floors, settings = _read_inputs(inputs)
+    inputs.itemById("angle").isEnabled = not floors or any(
+        geometry.angle_matters(feature.native(floor), settings.layers, settings.reference is not None)
+        for floor in floors
+    )
 
 
 def _connect(command: adsk.core.Command, **handlers):
@@ -219,6 +232,7 @@ def edit_activate(args: adsk.core.CommandEventArgs):
     settings = feature.read_settings(edited)
     if settings.reference is not None:
         inputs.itemById("reference").addSelection(settings.reference)
+    _update_angle_state(inputs)
 
 
 def edit_validate(args: adsk.core.ValidateInputsEventArgs):

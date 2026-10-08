@@ -178,6 +178,8 @@ def build_fixture():
         "sub_reference": build_small_block(sub.component, "SubRefBlock", "round").createForAssemblyContext(sub),
         # Hex counterbore for the manual layer count.
         "manual": build_small_block(root, "ManualHex", "hex", y0=-7),
+        # Hex counterbore whose bridges follow a reference line instead of the hex flats.
+        "hex_reference": build_small_block(root, "RefHex", "hex", y0=-10),
     }
 
 
@@ -233,10 +235,10 @@ def volume(body):
     return body.volume * 1000  # mm3
 
 
-def layer_count(face, layers, height=0.02):
+def layer_count(face, layers, height=0.02, reference=None):
     """Number of layers the tool for a floor spans (its depth below the floor / layer height)."""
     floor_face = feature.native(face)
-    tool = geometry.tool_body(floor_face, 0, layers, height)
+    tool = geometry.tool_body(floor_face, 0, layers, height, reference)
     n, u, v = geometry.floor_frame(floor_face)
     return app.measureManager.getOrientedBoundingBox(tool, u, v).height / height
 
@@ -302,17 +304,33 @@ def run():
 
     # Reference: first bridges along the 30 degree sketch line, in the root and in the
     # transformed sub-component (floor and line picked as proxies).
+    # The hex case checks that a reference overrides the hex flats' directions.
     reference_cases = {
-        "root": (small_floor(fx["root"]), fx["reference"], lambda: fx["root"].bRepBodies.itemByName("RefBlock")),
+        "root": (small_floor(fx["root"]), fx["reference"], lambda: fx["root"].bRepBodies.itemByName("RefBlock"), -3),
         "sub": (small_floor(fx["sub"].component, occurrence=fx["sub"]), fx["sub_reference"],
-                lambda: fx["sub"].component.bRepBodies.itemByName("SubRefBlock")),
+                lambda: fx["sub"].component.bRepBodies.itemByName("SubRefBlock"), -3),
+        "hex": (small_floor(fx["root"], y0=-10), fx["hex_reference"],
+                lambda: fx["root"].bRepBodies.itemByName("RefHex"), -9),
     }
 
     def probe(case, angle_deg):
         a = math.radians(angle_deg)
-        return reference_cases[case][2]().pointContainment(P(1 + 0.4 * math.cos(a), -3 + 0.4 * math.sin(a), 0.69))
+        centre_y = reference_cases[case][3]
+        return reference_cases[case][2]().pointContainment(P(1 + 0.4 * math.cos(a), centre_y + 0.4 * math.sin(a), 0.69))
 
-    for case, (ref_floor, line, _) in reference_cases.items():
+    hex_floor = reference_cases["hex"][0]
+    if hex_floor is not None:
+        line_direction = geometry.direction_of(fx["hex_reference"])
+        check(abs(layer_count(hex_floor, None, reference=line_direction) - 3) < 1e-3,
+              "reference hex: expected 3 layers with a reference")
+        native_hex = feature.native(hex_floor)
+        check(not geometry.angle_matters(native_hex, None, False), "angle should not matter: hex, auto, no reference")
+        check(geometry.angle_matters(native_hex, None, True), "angle should matter: hex with reference")
+        check(geometry.angle_matters(native_hex, 2, False), "angle should matter: manual layers")
+        check(geometry.angle_matters(feature.native(reference_cases["root"][0]), None, False),
+              "angle should matter: round hole")
+
+    for case, (ref_floor, line, _, _) in reference_cases.items():
         if check(ref_floor is not None, f"reference {case}: floor not found"):
             created.append(feature.create([ref_floor], feature.Settings("0.2 mm", "0 deg", None, line)))
             check(probe(case, 30) == adsk.fusion.PointContainment.PointOutsidePointContainment,
@@ -344,7 +362,7 @@ def run():
     }
     check(max(volumes.values()) - min(volumes.values()) < 1e-3, f"volumes differ after parameter edit: {volumes}")
     report["volumes_after_edit_mm3"] = {k: round(v, 4) for k, v in volumes.items()}
-    for case, (ref_floor, _, _) in reference_cases.items():
+    for case, (ref_floor, _, _, _) in reference_cases.items():
         if ref_floor is not None:
             check(probe(case, 45) == adsk.fusion.PointContainment.PointOutsidePointContainment,
                   f"reference {case}: no cut along reference + 15 degrees after edit")
