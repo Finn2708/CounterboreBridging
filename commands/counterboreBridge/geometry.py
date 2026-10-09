@@ -35,7 +35,16 @@ _tbm = adsk.fusion.TemporaryBRepManager.get()
 
 
 class BridgeError(Exception):
-    """The selected geometry cannot be bridged."""
+    """The selected geometry cannot be bridged.
+
+    message is an English text with {} placeholders for values; the UI translates
+    message and then fills in the values.
+    """
+
+    def __init__(self, message: str, *values):
+        super().__init__(message.format(*values))
+        self.message = message
+        self.values = values
 
 
 class Hole:
@@ -87,7 +96,7 @@ def direction_of(entity) -> adsk.core.Vector3D:
         return entity.geometry.direction
     if isinstance(entity, adsk.fusion.BRepEdge) and isinstance(entity.geometry, adsk.core.Line3D):
         return entity.startVertex.geometry.vectorTo(entity.endVertex.geometry)
-    raise BridgeError("reference must be a straight edge, sketch line or construction axis")
+    raise BridgeError("The reference must be a straight edge, sketch line or construction axis.")
 
 
 def floor_frame(face: adsk.fusion.BRepFace, reference: adsk.core.Vector3D = None):
@@ -118,7 +127,7 @@ def floor_frame(face: adsk.fusion.BRepFace, reference: adsk.core.Vector3D = None
     along_n.scaleBy(u.dotProduct(n))
     u.subtract(along_n)
     if u.length < 1e-9:
-        raise BridgeError("reference direction is perpendicular to the counterbore floor")
+        raise BridgeError("The reference is perpendicular to the counterbore floor.")
     u.normalize()
     return n, u, n.crossProduct(u)
 
@@ -170,9 +179,9 @@ def tool_body(
     body in component space).
     """
     if not is_floor(face):
-        raise BridgeError("the counterbore floor must be planar and contain a hole")
+        raise BridgeError("The counterbore floor must be planar and contain a hole.")
     if (layers is not None and layers < 1) or layer_height <= 0:
-        raise BridgeError("need at least one layer and a positive layer height")
+        raise BridgeError("Need at least one layer and a positive layer height.")
     n, u0, v0 = floor_frame(face, reference)
 
     # The counterbore outline, one layer thick: a box over the floor minus the part itself.

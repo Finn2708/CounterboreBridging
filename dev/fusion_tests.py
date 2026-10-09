@@ -17,7 +17,7 @@ parameters and an upstream pocket depth, checks that everything recomputes to th
 same result in every context, and that no sliver faces are left. The document is left open for inspection. Previous
 fixture documents are closed without saving.
 
-Run with app, adsk and a result dict in scope (e.g. through a dev bridge).
+Run inside Fusion with app and adsk in scope; the outcome is in the result dict.
 """
 
 import math
@@ -40,7 +40,8 @@ def addin_module(suffix):
 
 feature = addin_module("commands.counterboreBridge.feature")
 geometry = addin_module("commands.counterboreBridge.geometry")
-report = result if "result" in globals() else {}
+result = globals().get("result", {})
+report = result
 failures = report.setdefault("failures", [])
 
 

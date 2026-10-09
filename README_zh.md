@@ -1,23 +1,60 @@
 # 沉孔搭桥
 
-这是一个适用于 Autodesk Fusion360 的插件，用于为 FDM 3D 打印优化沉头孔结构。
+一款 Autodesk Fusion 插件，让沉头孔在 FDM 3D 打印时无需支撑即可打印。
 
 <img src="media/addin_output.png" height=200/><img src="media/slicer_output.png" height=200>
 
-## 安装方法
+[English](README.md)
 
-1. 克隆本仓库到 `%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns` 目录下（例如：`C:\Users\Finn\AppData\Roaming\Autodesk\Autodesk Fusion 360\API\AddIns`，Mac 用户为 `~/Library/Application\ Support/Autodesk/Autodesk\ Fusion\ 360/API`）。
-请确保文件夹名称为 `CounterboreBridging`（如果你是以 zip 文件方式下载的仓库）。
+当沉头孔朝向打印平台时，孔周围的环形区域下方没有可以支撑的材料。常用的解决办法是"牺牲层搭桥"：在沉头孔底面上方切出几层、每层一个层高的切口，使每一层都能从一侧壁面搭桥到另一侧。第一层切口是一条与孔同宽的长条，下一层旋转 90°（六角孔为 60°），最后一层正好落在孔的轮廓上。这样切片软件会打印出笔直的桥接，而不是下垂的圆环。
 
-2. 重启 Fusion。
-3. 插件将在 `设计工作区 - 实体选项卡 - 修改分组` 中显示，在 `平移/复制（Move/Copy）` 命令旁边。
+本插件将这些切口创建为时间轴中的一个 **沉孔搭桥** 特征。它可以像其他特征一样编辑，并会随模型的修改而更新。
 
-如果未自动激活，你可以手动在 `设计工作区 - 工具选项卡 - 插件分组 - 脚本与插件（Scripts and Addins）` 中启动插件。
+## 功能
+
+- 适用于任意孔形：圆孔、六角孔、方孔、长圆孔，或一个沉头孔中的多个孔。
+- 根据孔形自动确定层数：孔的每个直边方向对应一层（六角孔 3 层，方孔或长圆孔 2 层，圆孔 2 层）。也可以手动设置层数。
+- 切口沿孔的边方向，或沿你选择的参考直边、草图直线或轴，并可附加角度。
+- 支持零部件及嵌套零部件中的实体，任意方向均可。
+- 层高和角度是模型参数，可以关联到你自己的用户参数（例如 `layer_height`）。
+- 在时间轴中双击该特征即可修改所有设置，包括所选的沉头孔。
+- 支持英文、德文、简体中文和繁体中文，跟随 Fusion 的语言设置。
+
+## 安装
+
+1. 下载本仓库（绿色 **Code** 按钮 → **Download ZIP**）并解压，或直接克隆。
+2. 将文件夹放入 Fusion 的插件目录，并确保文件夹名称正好是 `CounterboreBridging`（ZIP 解压后名为 `CounterboreBridging-main`，需要重命名）：
+   - Windows：`%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns`
+   - macOS：`~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/AddIns`
+3. 重启 Fusion。插件会自动启动；如果没有，请在 **工具 → 附加模块 → 脚本和附加模块** 中启动。
 
 ## 使用方法
-先创建一个带有圆柱形沉头孔的零件（例如使用 `孔(Hole)` 命令或普通拉伸）。然后：
-1. 启用该命令
-2. 选择一个或多个沉头孔底面
-3. 选择一个主要桥接应平行于的边
 
-![](media/addin_input.png)
+1. 在 **设计** 工作空间中，打开 **实体 → 修改 → 沉孔搭桥**。如需固定到工具栏，请使用菜单项旁边的 ⋮。
+2. 选择一个或多个 **沉头孔底面**：即带孔的平面。
+3. 可选调整：
+   - **参考方向**：第一层搭桥所沿的直边、草图直线或构造轴。不选择时，搭桥沿孔自身的边方向。
+   - **角度**：相对参考方向旋转搭桥。没有参考方向时，仅对圆孔和手动层数生效，其他情况下为灰色。
+   - **层高**：切片软件的层高（默认 0.2 mm）。可以输入表达式和用户参数。
+   - **根据孔形确定层数**：默认开启。关闭后可手动设置层数。
+4. 点击 **确定**。每个所选实体会在时间轴中得到一个沉孔搭桥特征。
+
+之后如需修改，请在时间轴中双击该特征，或在 **修改 → 更改参数** 中编辑其参数。
+
+## 说明与限制
+
+- 该特征使用 Fusion 的自定义特征（Custom Feature）API，Autodesk 仍将其标记为预览功能。测试中运行可靠，但未来的 Fusion 更新可能会改变其行为。
+- 沉头孔的侧壁应垂直于底面。
+- 如果插件未加载，Fusion 会保留现有几何体，但无法重新计算该特征，并会显示警告。
+- 如果上游的沉头孔改动过大（例如被移到其他位置），特征将无法找到它并显示为红色。双击该特征并重新选择底面即可。
+
+## 开发
+
+- `commands/counterboreBridge/geometry.py` 通过布尔运算将切口构建为一个实体；`feature.py` 将其封装为自定义特征；`entry.py` 包含创建和编辑命令；`strings.py` 包含翻译。
+- `dev/fusion_tests.py` 是在 Fusion 中运行的回归测试。它会在新的未保存文档中创建测试零件（包括旋转的零件、零部件以及各种孔形），创建并编辑搭桥，然后检查结果。在 Fusion 中运行时需要 `app` 和 `adsk`（例如在文本命令窗口的 Python 模式中）；失败项记录在 `result["failures"]` 中。
+- `dev/reload.py` 可在运行中的 Fusion 里重新加载插件。注意：时间轴图标只有在重启 Fusion 后才会更新。
+- `dev/make_icons.py` 用于生成图标（纯 Python，无依赖）。
+
+## 致谢
+
+感谢 [Rarder44](https://github.com/Rarder44) 实现非圆形沉头孔支持，[kap1bala](https://github.com/kap1bala) 提供中文翻译，[BenRoe](https://github.com/BenRoe) 补充 macOS 安装说明，以及 [luxflow](https://github.com/luxflow) 找出零部件相关的错误。

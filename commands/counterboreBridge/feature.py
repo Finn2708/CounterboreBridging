@@ -22,6 +22,7 @@ import adsk.core
 import adsk.fusion
 
 from . import geometry
+from .strings import tr
 
 DEFINITION_ID = "FinnWeithoff_CounterboreBridge"
 
@@ -85,10 +86,10 @@ def create(floors, settings: Settings) -> adsk.fusion.CustomFeature:
     # and is extended to the combine afterwards.
     feature_input = component.features.customFeatures.createInput(_definition)
     feature_input.addCustomParameter(
-        "layerHeight", "Layer height", adsk.core.ValueInput.createByString(settings.layer_height), "mm", True
+        "layerHeight", tr("Layer height"), adsk.core.ValueInput.createByString(settings.layer_height), "mm", True
     )
     feature_input.addCustomParameter(
-        "angle", "Angle", adsk.core.ValueInput.createByString(settings.angle), "deg", True
+        "angle", tr("Angle"), adsk.core.ValueInput.createByString(settings.angle), "deg", True
     )
     for i, floor in enumerate(floors):
         feature_input.addDependency(f"floor{i}", floor)
@@ -171,7 +172,7 @@ def resolved_floors(feature: adsk.fusion.CustomFeature, how: list = None):
             bodies += [body for body in feature.parentComponent.bRepBodies if body not in bodies]
             floor = next((f for f in map(lambda b: geometry.find_floor(b, print_), bodies) if f), None)
             if floor is None:
-                raise geometry.BridgeError(f"counterbore floor {i + 1} not found")
+                raise geometry.BridgeError("Counterbore floor {} not found.", i + 1)
             context = getattr(selected, "assemblyContext", None) if selected is not None else None
             selected = floor.createForAssemblyContext(context) if context is not None else floor
             source = "fingerprint"

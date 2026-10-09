@@ -24,6 +24,12 @@ _TRANSLATIONS = {
         "Rotates the bridges from the reference. Without a reference it only applies to round holes "
         "and manual layers, as other holes set their own directions.":
             "相对参考方向旋转搭桥。没有参考方向时，仅对圆孔和手动层数生效，其他孔由自身边方向决定。",
+        "Counterbore floor {} not found.": "找不到沉头孔底面 {}。",
+        "The reference must be a straight edge, sketch line or construction axis.":
+            "参考方向必须是直边、草图直线或构造轴。",
+        "The reference is perpendicular to the counterbore floor.": "参考方向垂直于沉头孔底面。",
+        "The counterbore floor must be planar and contain a hole.": "沉头孔底面必须是平面且包含孔。",
+        "Need at least one layer and a positive layer height.": "至少需要一层，且层高必须大于零。",
     },
     _L.ChineseTaiwanLanguage: {
         "Counterbore Bridge": "沉頭孔搭橋",
@@ -44,6 +50,12 @@ _TRANSLATIONS = {
         "Rotates the bridges from the reference. Without a reference it only applies to round holes "
         "and manual layers, as other holes set their own directions.":
             "相對參考方向旋轉搭橋。沒有參考方向時，僅對圓孔和手動層數生效，其他孔由自身邊方向決定。",
+        "Counterbore floor {} not found.": "找不到沉頭孔底面 {}。",
+        "The reference must be a straight edge, sketch line or construction axis.":
+            "參考方向必須是直邊、草圖直線或構造軸。",
+        "The reference is perpendicular to the counterbore floor.": "參考方向垂直於沉頭孔底面。",
+        "The counterbore floor must be planar and contain a hole.": "沉頭孔底面必須是平面且包含孔。",
+        "Need at least one layer and a positive layer height.": "至少需要一層，且層高必須大於零。",
     },
     _L.GermanLanguage: {
         "Counterbore Bridge": "Senkungsbrücke",
@@ -68,6 +80,14 @@ _TRANSLATIONS = {
         "and manual layers, as other holes set their own directions.":
             "Dreht die Brücken gegenüber der Referenz. Ohne Referenz wirkt er nur bei runden Bohrungen und "
             "manueller Schichtanzahl, da andere Bohrungen ihre Richtungen selbst vorgeben.",
+        "Counterbore floor {} not found.": "Senkungsboden {} nicht gefunden.",
+        "The reference must be a straight edge, sketch line or construction axis.":
+            "Die Referenz muss eine gerade Kante, Skizzenlinie oder Konstruktionsachse sein.",
+        "The reference is perpendicular to the counterbore floor.": "Die Referenz steht senkrecht auf dem Senkungsboden.",
+        "The counterbore floor must be planar and contain a hole.":
+            "Der Senkungsboden muss eben sein und eine Bohrung enthalten.",
+        "Need at least one layer and a positive layer height.":
+            "Mindestens eine Schicht und eine positive Schichthöhe erforderlich.",
     },
 }
 

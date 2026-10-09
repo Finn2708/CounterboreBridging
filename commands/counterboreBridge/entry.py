@@ -182,7 +182,7 @@ def create_execute(args: adsk.core.CommandEventArgs):
         _create(args)
     except geometry.BridgeError as error:
         args.executeFailed = True
-        args.executeFailedMessage = str(error)
+        args.executeFailedMessage = tr(error.message).format(*error.values)
 
 
 def create_preview(args: adsk.core.CommandEventArgs):
@@ -262,7 +262,7 @@ def edit_execute(args: adsk.core.CommandEventArgs):
         _apply_edit(args)
     except geometry.BridgeError as error:
         args.executeFailed = True
-        args.executeFailedMessage = str(error)
+        args.executeFailedMessage = tr(error.message).format(*error.values)
         return
     restore = _edit.get("restore")
     if restore is not None:
