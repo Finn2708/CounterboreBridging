@@ -22,6 +22,8 @@
 
 ## 安装
 
+如果[发布页面](https://github.com/Finn2708/CounterboreBridging/releases)提供打包好的 ZIP，请将其中的 `CounterboreBridging/` 文件夹解压到下方列出的插件目录。使用源码安装时，请按照第 1 和第 2 步操作。
+
 1. 下载本仓库（绿色 **Code** 按钮 → **Download ZIP**）并解压，或直接克隆。
 2. 将文件夹放入 Fusion 的插件目录，并确保文件夹名称正好是 `CounterboreBridging`（ZIP 解压后名为 `CounterboreBridging-main`，需要重命名）：
    - Windows：`%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns`
@@ -54,6 +56,10 @@
 - `dev/fusion_tests.py` 是在 Fusion 中运行的回归测试。它会在新的未保存文档中创建测试零件（包括旋转的零件、零部件以及各种孔形），创建并编辑搭桥，然后检查结果。在 Fusion 中运行时需要 `app` 和 `adsk`（例如在文本命令窗口的 Python 模式中）；失败项记录在 `result["failures"]` 中。
 - `dev/reload.py` 可在运行中的 Fusion 里重新加载插件。注意：时间轴图标只有在重启 Fusion 后才会更新。
 - `dev/make_icons.py` 用于生成图标（纯 Python，无依赖）。
+
+### 打包发布版本
+
+准备发布时，在 `CounterboreBridging.manifest` 中填写数字版本号并提交，然后为该提交打上对应的标签（例如版本 `2.0.0` 对应标签 `v2.0.0`）。将命令 `python dev/package_release.py v2.0.0` 中的标签换成实际标签，运行后将 `dist/` 中的 ZIP 作为附件上传到该标签对应的 GitHub 正式发布版本。脚本会从标签对应的提交中提取运行所需的文件。
 
 ## 致谢
 

@@ -22,6 +22,8 @@ This add-in creates those cuts as a single **Counterbore Bridge** feature in the
 
 ## Installation
 
+If the release includes a packaged ZIP under [Releases](https://github.com/Finn2708/CounterboreBridging/releases), extract its `CounterboreBridging/` folder into the add-in folder listed below. For a source checkout, follow steps 1 and 2.
+
 1. Download this repository (green **Code** button → **Download ZIP**) and unpack it, or clone it.
 2. Put the folder into Fusion's add-in folder and make sure it is named exactly `CounterboreBridging` (a ZIP download unpacks as `CounterboreBridging-main`, rename it):
    - Windows: `%appdata%\Autodesk\Autodesk Fusion 360\API\AddIns`
@@ -54,6 +56,10 @@ To change it later, double-click the feature in the timeline, or edit its parame
 - `dev/fusion_tests.py` is a regression test that runs inside Fusion. It builds test parts in a new, unsaved document (including rotated parts, components and every hole shape), creates and edits bridges, and checks the results. Run it inside Fusion with `app` and `adsk` in scope (for example from the Text Commands window in Python mode); failures end up in `result["failures"]`.
 - `dev/reload.py` reloads the add-in in a running Fusion. Note that the timeline icon only changes after a Fusion restart.
 - `dev/make_icons.py` renders the icons (pure Python, no dependencies).
+
+### Package a release
+
+When a version is ready to ship, commit its numeric version in `CounterboreBridging.manifest` and tag that commit (for example, `v2.0.0` for version `2.0.0`). Run `python dev/package_release.py v2.0.0` with your tag, then attach the ZIP from `dist/` to the stable GitHub Release for that tag. The script packages the committed runtime files from the tag.
 
 ## Credits
 
